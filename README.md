@@ -12,7 +12,7 @@ Python 3.10 이상과 표준 라이브러리만 사용합니다. 저장소 루�
 
 ```text
 python -m webrecon --help
-python -m webrecon plan --config config.example.json
+python -m webrecon plan --config tests/fixtures/config.loopback.json
 python -m unittest discover -s tests -v
 ```
 
@@ -20,29 +20,26 @@ Linux/WSL2에서 `python` 명령이 없다면:
 
 ```text
 python3 -m webrecon --help
-python3 -m webrecon plan --config config.example.json
+python3 -m webrecon plan --config tests/fixtures/config.loopback.json
 python3 -m unittest discover -s tests -v
 ```
 
 Windows의 Python Launcher를 사용하는 환경에서는 `py -3`도 가능합니다.
-이 문서의 `example.invalid`는 실행 대상이 아닌 문서용 이름입니다.
-`config.example.json`과 `seeds.example.txt`는 문서용 예시입니다. 실제 대상은 Git에서 제외된
-`config.local.json`과 `seeds.local.txt`에 설정하세요.
-plan은 설정만 검사하며 DNS 조회도 하지 않습니다.
+위 `plan` 명령은 로컬 테스트 설정을 읽으며 DNS 조회나 네트워크 요청을 수행하지 않습니다.
 
-새 환경에서는 실제 대상 정보가 없는 `examples/config.public.json`과 `examples/seeds.public.txt`를
-템플릿으로 사용할 수 있습니다. Windows/Linux 모두 다음 복사 명령을 사용할 수 있습니다.
+승인된 사이트에 사용할 `config.local.json`은 아래 형식으로 만드세요. `example.invalid`를
+승인받은 주소로 바꾸고, 시작 링크가 필요하면 `seeds.local.txt`에 한 줄씩 적습니다.
 
-```text
-python -c "import shutil; shutil.copyfile('examples/config.public.json', 'config.local.json')"
-python -m webrecon plan --config config.local.json
+```json
+{
+  "target_url": "https://example.invalid/",
+  "allowed_origins": ["https://example.invalid"]
+}
 ```
-
-`example.invalid`는 접속 대상이 아닙니다. scan 전에 개인 설정의 대상·허용 origin을 수정하세요.
 
 ## 승인된 정찰 실행
 
-예시 설정을 `config.local.json`으로 복사하고 승인받은 **전체 origin**을 지정합니다.
+`config.local.json`에 승인받은 **전체 origin**을 지정합니다.
 origin은 스킴, 정확한 호스트, 포트의 조합입니다. HTTPS의 생략된 포트는 443,
 HTTP는 80입니다. 서브도메인, 다른 포트, HTTP→HTTPS 전환은 자동 허용되지 않습니다.
 경로 단위 승인 범위는 MVP에서 지원하지 않으므로 일부 경로만 승인된 대상에는 사용하지 마세요.
@@ -169,7 +166,7 @@ robots 허용 여부와 별개로 메모리의 응답만 분석하므로 추가 
 
 설정에 `"robots_html_policy": "continue"`를 넣으면 해당 origin의 robots 정책을 확인하지 못했다는
 사실을 기록한 뒤 target/seed → 같은 범위의 페이지 링크 → 참조된 JS 수집을 계속합니다.
-배포 예시와 기본 설정은 `"robots_html_policy": "stop"`을 사용합니다.
+기본 설정은 `"robots_html_policy": "stop"`입니다.
 
 예외 조건은 **200 응답, HTML MIME(text/html 또는 application/xhtml+xml), HTML 형태 확인,
 오류·잘림·NUL·robots 지시문 형태 없음**입니다. 단순히 MIME만 HTML인 텍스트 정책은 예외가 아닙니다.

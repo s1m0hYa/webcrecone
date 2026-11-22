@@ -6,6 +6,8 @@ htmlcov/
 .venv/
 venv/
 output/
+webrecon-*.json
+webrecon-*.html
 *.log
 *.db
 *.sqlite*
@@ -13,6 +15,8 @@ output/
 .env
 .env.*
 !.env.example
+/config.example.json
+/examples/config.public.json
 config.local*.json
 config.private*.json
 seeds.local*.txt

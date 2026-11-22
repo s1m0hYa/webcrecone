@@ -151,7 +151,7 @@ def load_config(path: Path) -> Config:
         raise ConfigError("설정은 JSON 객체여야 합니다.")
     names = {field.name for field in fields(Config)}
     if set(data) - names:
-        raise ConfigError("설정에 알 수 없는 키가 있습니다. config.example.json을 확인하세요.")
+        raise ConfigError("설정에 알 수 없는 키가 있습니다. README.md의 설정 항목을 확인하세요.")
     if not {"target_url", "allowed_origins"} <= data.keys():
         raise ConfigError("target_url과 allowed_origins가 필요합니다.")
     return Config(**data)

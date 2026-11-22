@@ -173,13 +173,14 @@ class ReportAndCliTests(unittest.TestCase):
                 output_directory(config)
 
     def test_plan_dry_run_and_no_authorization_never_use_network(self):
+        config_path = str(FIXTURES / "config.loopback.json")
         with patch("socket.getaddrinfo", side_effect=AssertionError("DNS forbidden")), patch("socket.socket", side_effect=AssertionError("network forbidden")):
-            for args in (["plan", "--config", "config.example.json"], ["scan", "--config", "config.example.json", "--dry-run"]):
+            for args in (["plan", "--config", config_path], ["scan", "--config", config_path, "--dry-run"]):
                 with redirect_stdout(io.StringIO()) as stdout:
                     self.assertEqual(main(args), 0)
                 self.assertFalse(json.loads(stdout.getvalue())["network_enabled"])
             with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as context:
-                main(["scan", "--config", "config.example.json"])
+                main(["scan", "--config", config_path])
             self.assertEqual(context.exception.code, 2)
 
     def test_scan_cli_generates_json(self):
