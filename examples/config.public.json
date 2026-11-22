@@ -1,0 +1,11 @@
+{
+  "target_url": "https://example.invalid/",
+  "allowed_origins": ["https://example.invalid"],
+  "request_interval": 1.0,
+  "max_requests": 100,
+  "max_pages": 50,
+  "max_depth": 2,
+  "max_script_depth": 2,
+  "robots_html_policy": "stop",
+  "output_dir": "output"
+}

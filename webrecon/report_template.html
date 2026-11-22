@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-${script_hash}'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
+<title>WebRecon · 정적 정찰 보고서</title>
+<style>${styles}</style>
+</head>
+<body>
+<header class="topbar"><div class="brand">Web<span>Recon</span> <span class="edition"> / OBSERVATION REPORT</span></div><span class="offline">오프라인 보고서</span></header>
+<main>
+<div class="hero"><div><h1>웹 구조 탐색 보고서</h1><div class="target">${target}</div></div><div class="run-meta"><p>SCAN ID <code>${scan_id}</code></p><p>시작 ${started_at}</p><p>종료 ${finished_at}</p></div></div>
+<details class="report-summary"><summary>실행 요약과 수집 통계</summary><div class="metrics">${cards}</div></details>
+<div class="notice"><b>관찰 범위 안내</b><p>${notice} 후보 수는 실제 기능 수와 다릅니다. HTTP 200도 해당 경로의 기능 존재를 보장하지 않습니다.</p></div>
+<nav data-report-tabs data-default-tab="${default_tab}" class="section-nav" aria-label="보고서 목차"><a id="tab-document" data-report-tab href="#document-section">페이지·호출 관계</a><a id="tab-endpoint" data-report-tab href="#endpoint-section">엔드포인트</a><a id="tab-resource" data-report-tab href="#resource-section">파일 위치</a><a id="tab-pattern" data-report-tab href="#pattern-section">주소 패턴</a><a id="tab-variable" data-report-tab href="#variable-section">주소식 변수</a><a id="tab-js-diagnostic" data-report-tab href="#js-diagnostic-section">JS 진단</a><a id="tab-request" data-report-tab href="#request-section">요청 기록</a><a id="tab-diagnostic" data-report-tab href="#diagnostic-section">수집 진단</a></nav>
+<noscript><p class="notice">검색·필터는 브라우저 JavaScript가 필요합니다. 아래 전체 목록은 그대로 확인할 수 있습니다.</p></noscript>
+<section data-report-panel id="document-section"><h2>페이지·호출 관계</h2>
+<p class="description">탐색 목록에서 함수나 변수를 선택하면 선언 위치와 같은 스크립트 안의 호출·사용 관계를 볼 수 있습니다.</p>
+<div id="explorer-data" hidden>${explorer}</div>
+<div id="explorer" hidden>
+  <div class="ex-layout">
+    <aside class="ex-pane ex-list" aria-label="탐색 목록">
+      <label for="ex-kind">탐색 목록</label>
+      <select id="ex-kind"><option value="page">페이지</option><option value="js">JavaScript</option><option value="api">API 후보·패턴</option><option value="function">함수</option><option value="variable">변수</option><option value="asset">리소스</option><option value="all">전체 항목</option></select>
+      <input id="ex-filter" type="search" aria-label="이름 또는 주소 검색" placeholder="이름 또는 주소 검색">
+      <small id="ex-count" role="status"></small><div id="ex-list"></div>
+      <button id="ex-more" type="button" hidden>목록 더 보기</button>
+    </aside>
+    <div class="ex-pane ex-center"><div class="ex-tree-heading"><h3>참조 관계</h3><select id="ex-direction" aria-label="참조 방향"><option value="out">이 항목이 참조하는 곳</option><option value="in">이 항목을 참조한 곳</option></select></div><p id="ex-path" class="ex-path"></p><div id="ex-tree"></div></div>
+    <aside class="ex-pane ex-inspector" aria-label="선택 항목 상세">
+      <h3>상세 정보</h3><div id="ex-detail"></div>
+    </aside>
+  </div>
+</div>
+<h3 class="ex-doc-heading">문서와 폼</h3><p class="description">문서별 응답 상태와 폼에 선언된 메서드·필드입니다.</p>${documents}</section>
+<section data-report-panel id="endpoint-section"><div class="section-heading"><span class="section-number">02</span><h2>엔드포인트 후보</h2></div><p class="description">도메인·분류·메서드 근거로 좁혀 보세요. <b>응답 메서드</b>는 HTTP 상태를 관찰한 요청이며, <b>선언 메서드</b>는 폼·JS에 적힌 단서입니다. 미확인은 GET으로 추정하지 않습니다.</p><div class="category-list" aria-label="분류 바로 선택">${categories}</div>${endpoints}</section>
+<section data-report-panel id="resource-section"><div class="section-heading"><span class="section-number">03</span><h2>파일 · 리소스 위치</h2></div><p class="description">JS, CSS, 이미지 등의 웹 URL과 참조 출처입니다. 확장자·HTML 참조로 분류한 후보이며, 서버 내부 디스크 경로나 실제 파일 존재를 뜻하지 않습니다. 크기는 읽은 응답 바이트입니다.</p>${resources}</section>
+<section data-report-panel id="pattern-section"><div class="section-heading"><span class="section-number">04</span><h2>주소 패턴 · 정적 해석</h2></div><p class="description">단순 const·문자열 결합·변수 별칭을 추적한 결과입니다. 남은 변수는 이유와 위치를 확인하세요. 정적 해석 완료도 실제 기능 존재나 응답을 뜻하지 않으며, 이 분석으로 추가 요청을 보내지 않습니다.</p>${patterns}</section>
+<section data-report-panel id="variable-section"><div class="section-heading"><span class="section-number">05</span><h2>주소식에 쓰인 변수</h2></div><p class="description">주소 패턴에 연결된 변수와 상수입니다. 출처·선언 범위가 다른 같은 이름은 별도로 표시합니다. 전체 JS 심볼 목록이 아니며 값은 저장하지 않습니다.</p>${variables}</section>
+<section data-report-panel id="js-diagnostic-section"><div class="section-heading"><span class="section-number">06</span><h2>JS 추출 진단</h2></div><p class="description">지원하는 호출 형태 중 해석·제외한 수와 위치입니다. 토큰화 실패나 미지원 문법 때문에 검출하지 못한 호출은 집계할 수 없습니다. 빈 표는 진단 자료가 없음을 뜻합니다.</p>${js_diagnostics}</section>
+<section data-report-panel id="request-section"><div class="section-heading"><span class="section-number">07</span><h2>요청 · 응답 기록</h2></div><p class="description">robots와 리다이렉트를 포함한 실제 전송 시도 및 전송 전 차단 기록입니다. HTTP 응답과 HTML 파싱 성공은 구분해서 확인하세요.</p>${requests}</section>
+<section data-report-panel id="diagnostic-section"><div class="section-heading"><span class="section-number">08</span><h2>수집 진단 · 남은 불확실성</h2></div><div class="facts"><span>전체 중단 <strong>${stop_reason}</strong></span><span>페이지 제한 <strong>${page_stop_reason}</strong></span><span>남은 큐 <strong>페이지 ${queue} / JS ${script_queue}</strong></span></div><div class="diagnostic-grid"><div class="panel"><h3>robots 정책 확인</h3><ul>${robots}</ul></div><div class="panel"><h3>제한 · 실패 기록</h3><ul>${issues}</ul></div></div><details class="limitations"><summary>분석 한계와 미확인 항목</summary><ul>${unverified}</ul></details></section>
+<footer><span>WebRecon · 정적 관찰 자료 · 취약점 검증 결과가 아닙니다.</span><span>이 파일의 검색·필터는 로컬에서만 동작합니다.</span></footer>
+</main>
+<script>${script}</script>
+</body>
+</html>

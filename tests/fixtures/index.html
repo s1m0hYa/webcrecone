@@ -1,0 +1,22 @@
+<!doctype html>
+<html><head><title>WebRecon Local Fixture</title>
+<meta name="generator" content="FixtureCMS/1.0">
+<meta name="csrf-token" content="META_PRIVATE">
+<link rel="stylesheet" href="/assets/site.css"></head><body>
+<a href="/about.html#one">About</a><a href="/about.html#two">Duplicate</a>
+<a href="/search?q=QUERY_PRIVATE&amp;token=TOKEN_PRIVATE">Search</a>
+<a href="/logout">Logout</a><a href="/private/data">Private</a>
+<a href="/api/users">API</a><a href="https://outside.invalid/integration">Outside</a>
+<a href="javascript:alert('SCRIPT_PRIVATE')">Ignored</a>
+<form method="post" action="/login?next=FORM_PRIVATE">
+<input name="username" value="USER_PRIVATE" required>
+<input type="password" name="password" value="PASSWORD_PRIVATE">
+<input type="hidden" name="csrf" value="CSRF_PRIVATE">
+<input type="file" name="attachment">
+<textarea name="message">TEXTAREA_PRIVATE</textarea>
+<select name="choice"><option value="OPTION_PRIVATE">One</option></select>
+</form>
+<script src="/assets/app.js"></script><iframe src="/embedded"></iframe>
+<div data-endpoint="/api/items?key=ATTRIBUTE_PRIVATE"></div>
+<!-- COMMENT_PRIVATE -->
+</body></html>

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <title>Received response fixture</title>
+  <meta name="description" content="META_PRIVATE">
+  <link rel="stylesheet" href="/assets/site.css">
+</head>
+<body>
+  <!-- RAW_ONLY_MARKER -->
+  <a href="/guide#one">Guide</a>
+  <a href="/guide#two">Same guide</a>
+  <a href="/contact?token=QUERY_PRIVATE">Contact</a>
+  <a href="/logout">Logout</a>
+  <a href="https://outside.invalid/help">External</a>
+  <a href="javascript:void(0)">No navigation</a>
+  <form action="/api/orders" method="post">
+    <input name="item" value="FORM_PRIVATE">
+    <input name="password" type="password" value="PASSWORD_PRIVATE">
+  </form>
+  <div data-endpoint="/api/metrics"></div>
+  <script src="/assets/bundle.js"></script>
+  <script>
+    function loadItems() {
+      return fetch('/api/items?token=JS_PRIVATE');
+    }
+    function loadUser(userId) {
+      return fetch(`/api/users/${userId}`);
+    }
+  </script>
+</body>
+</html>
