@@ -210,8 +210,7 @@ scan은 새로 받은 탐색 응답을 실제 Content-Type에 따라 분석하�
 
 ## 알고 있는 링크에서 시작하기
 
-`seeds.local.txt`에 승인 범위 내 **절대 URL을 한 줄에 하나씩** 넣습니다.
-`seeds.example.txt`에서 문서용 입력 예시를 확인할 수 있습니다.
+로컬에 `seeds.local.txt`를 만들고 승인 범위 내 **절대 URL을 한 줄에 하나씩** 넣습니다. `seeds*.txt` 목록은 Git에서 제외합니다.
 빈 줄과 `#`로 시작하는 주석은 무시하고 UTF-8/BOM,
 Windows 줄바꿈을 지원합니다. URL fragment의 `#`는 주석으로 해석하지 않습니다.
 
@@ -375,7 +374,6 @@ python -m http.server 8000 --bind 127.0.0.1 --directory tests/fixtures
 ```text
 python -m webrecon plan --config tests/fixtures/config.loopback.json
 python -m webrecon scan --config tests/fixtures/config.loopback.json --ack-authorized
-python -m webrecon plan --config tests/fixtures/config.loopback.json --seeds-file tests/fixtures/seeds.loopback.txt
 ```
 
 index.html과 about.html, 참조된 assets/app.js를 관찰하고 `output/local-test/`에 JSON과 HTML을 저장합니다.

@@ -19,8 +19,7 @@ webrecon-*.html
 /examples/config.public.json
 config.local*.json
 config.private*.json
-seeds.local*.txt
-seeds.private*.txt
+seeds*.txt
 *.pem
 *.key
 .DS_Store

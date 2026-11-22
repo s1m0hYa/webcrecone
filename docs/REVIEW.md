@@ -55,7 +55,7 @@ JS 큐에 넣는 지점에서 깊이를 증가시키도록 모아 link/navigatio
 
 - test_portability.py가 패키지를 새 한글/공백 경로로 복사해 Python -S로 실행한다.
   help/plan/analyze-js/HTML 재생성이 설치·site-packages 없이 성공했다. 실행한 OS는 Linux다.
-- examples/config.public.json, examples/seeds.public.txt에 문서용 주소만 둔 새 배포 템플릿을 추가했다.
+- 당시의 공개 템플릿은 배포에서 제외했다. 현재 설정과 seed 입력 형식은 README에서 확인한다.
   기존 사용자 설정/seed를 교체하지 않았다. .gitignore의 개인 설정·결과 제외도 유지한다.
 - Python 모듈 20개의 상대 import 그래프에 순환 없음, 운영 코드의 외부 패키지 의존성 없음 확인.
 - 네트워크는 SafeHttpClient, HTML/JS 파서는 순수 분석, 저장은 report, UI는 고정 자산으로 분리했다.
