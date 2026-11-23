@@ -239,4 +239,4 @@ unresolved_variables는 저장된 패턴의 미확인 이유다. `fetch(makeUrl(
 
 설치 없는 CLI, 오프라인 계획/재분석, 승인 차단, 안전 정책, HTML/폼 분석, JSON 생성은
 로컬 단위/메모리 HTTP 테스트로 확인한다. **실제 루프백 서버 크롤링 성공은 별도 완료 조건**이며
-현재 sandbox의 소켓 제한 때문에 미검증 상태다. 최신 수와 실행 환경은 STATUS.md에 기록한다.
+Ubuntu·Windows의 Python 3.10 실행에서 충족했다. 환경별 결과와 건너뜀 항목은 STATUS.md에 기록한다.
