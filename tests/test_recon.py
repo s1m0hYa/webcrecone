@@ -151,7 +151,7 @@ class ReportAndCliTests(unittest.TestCase):
             data, config, _ = crawl(origin, output_dir="output/한글 결과")
         with tempfile.TemporaryDirectory() as directory, patch("webrecon.report.REPOSITORY_ROOT", Path(directory)):
             destination = save_report(data, config)
-            self.assertEqual(destination.parent, Path(directory) / "output" / "한글 결과")
+            self.assertEqual(destination.parent, Path(directory).resolve() / "output" / "한글 결과")
             with patch("socket.getaddrinfo", side_effect=AssertionError("DNS forbidden")), patch("socket.socket", side_effect=AssertionError("network forbidden")):
                 loaded = load_report(destination)
             self.assertEqual(data["endpoints"], loaded["endpoints"])
@@ -160,6 +160,13 @@ class ReportAndCliTests(unittest.TestCase):
                 self.assertEqual(main(["report", "--input", str(destination)]), 0)
                 self.assertIn("관찰 페이지: 4", stdout.getvalue())
             self.assertFalse(list(destination.parent.glob("*.tmp")))
+
+    def test_equivalent_root_spelling_uses_same_output_boundary(self):
+        with tempfile.TemporaryDirectory() as directory:
+            nested = Path(directory, "nested")
+            nested.mkdir()
+            with patch("webrecon.report.REPOSITORY_ROOT", nested / ".."):
+                self.assertEqual(output_directory(), Path(directory).resolve() / "output")
 
     def test_symlink_escape_blocked(self):
         with tempfile.TemporaryDirectory() as directory, tempfile.TemporaryDirectory() as outside:
@@ -213,7 +220,10 @@ class RealLoopbackIntegrationTests(unittest.TestCase):
         with local_server(routes()) as (origin, requests):
             data, _, _ = crawl(origin)
         self.assertEqual([item[0] for item in requests], ["/robots.txt", "/", "/about.html", "/embedded", "/level2", "/assets/app.js"])
-        self.assertEqual(len(data["pages"]), 3)
+        # iframe의 404도 HTTP 관찰이다. 정상 HTML 파싱 수와 구분해 두 계약을 함께 검증한다.
+        self.assertEqual([(page["url"][len(origin):], page["status"]) for page in data["pages"]],
+                         [("/", 200), ("/about.html", 200), ("/embedded", 404), ("/level2", 200)])
+        self.assertEqual(sum(page["parsed"] for page in data["pages"]), 3)
 
     def test_real_completion_interval(self):
         last_byte_times = []

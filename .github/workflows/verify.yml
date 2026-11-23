@@ -28,6 +28,17 @@ jobs:
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           python -S -m webrecon plan --config tests/fixtures/config.loopback.json
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          # A missing socket, certificate tool or browser must stay visible in the result.
-          python -B -c "import unittest; s=unittest.defaultTestLoader.discover('tests'); r=unittest.TextTestRunner(verbosity=2).run(s); raise SystemExit(not r.wasSuccessful() or bool(r.skipped))"
+          # Windows에는 POSIX FIFO API가 없다. 그 한 건 외의 skip은 검증 누락이다.
+          @'
+          import os
+          import unittest
+
+          suite = unittest.defaultTestLoader.discover("tests")
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          allowed = set()
+          if os.name == "nt" and not hasattr(os, "mkfifo"):
+              allowed.add("test_local_analysis.LocalAnalysisTests.test_fifo_is_rejected_without_opening")
+          unexpected = [test.id() for test, reason in result.skipped if test.id() not in allowed]
+          raise SystemExit(not result.wasSuccessful() or bool(unexpected))
+          '@ | python -B -
           exit $LASTEXITCODE

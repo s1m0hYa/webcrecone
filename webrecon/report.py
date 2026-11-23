@@ -49,9 +49,11 @@ class ReportError(ValueError):
 def output_directory(config=None):
     """설정 경로를 저장소 output 경계 안으로 해석한다. 디렉터리 생성이나 네트워크 작업은 없다."""
     output_dir = config.output_dir if config is not None else "output"
-    directory = REPOSITORY_ROOT.joinpath(*output_dir.split("/")).resolve()
-    # Compare against the literal repository/output boundary, including symlink resolution.
-    boundary = REPOSITORY_ROOT / "output"
+    # Windows의 짧은 경로명 등 저장소 자체의 별칭을 양쪽에서 동일하게 해석한다.
+    # 경계의 output까지 resolve하면 외부 디렉터리를 향하는 링크를 허용하게 된다.
+    root = REPOSITORY_ROOT.resolve()
+    directory = root.joinpath(*output_dir.split("/")).resolve()
+    boundary = root / "output"
     if not directory.is_relative_to(boundary):
         raise ReportError("출력 경로가 저장소 output 폴더 밖을 가리킵니다.")
     return directory

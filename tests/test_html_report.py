@@ -193,7 +193,7 @@ class HtmlReportTests(unittest.TestCase):
             with patch("socket.getaddrinfo", side_effect=AssertionError("No DNS")), patch("socket.socket", side_effect=AssertionError("No network")):
                 with redirect_stdout(io.StringIO()) as stdout:
                     self.assertEqual(main(["report", "--input", str(source), "--format", "html"]), 0)
-                html_path = Path(directory) / "output" / (source.stem + ".html")
+                html_path = Path(directory).resolve() / "output" / (source.stem + ".html")
                 self.assertTrue(html_path.is_file())
                 self.assertIn(str(html_path), stdout.getvalue())
                 self.assertEqual(len(Document(html_path.read_text(encoding="utf-8")).tables["endpoints-table"]), len(self.data["url_list"]))
