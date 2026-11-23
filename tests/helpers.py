@@ -24,7 +24,7 @@ class FakeClock:
 
 
 @contextmanager
-def local_server(routes):
+def local_server(routes, *, tls=None, last_byte_times=None):
     requests = []
 
     class Handler(BaseHTTPRequestHandler):
@@ -39,6 +39,12 @@ def local_server(routes):
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             try:
+                if last_byte_times is not None and body:
+                    # 마지막 바이트를 늦게 보낸다. 요청 시작 간격만 제한하는 구현을 구별할 수 있다.
+                    self.wfile.write(body[:-1])
+                    time.sleep(0.12)
+                    last_byte_times.append(time.monotonic())
+                    body = body[-1:]
                 self.wfile.write(body)
             except (BrokenPipeError, ConnectionResetError):
                 pass
@@ -50,10 +56,13 @@ def local_server(routes):
         server = HTTPServer(("127.0.0.1", 0), Handler)
     except PermissionError:
         raise unittest.SkipTest("환경 정책이 루프백 소켓을 차단함: 실제 HTTP 통합 미검증") from None
+    if tls:
+        server.socket = tls.wrap_socket(server.socket, server_side=True)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     try:
-        yield f"http://127.0.0.1:{server.server_port}", requests
+        scheme = "https" if tls else "http"
+        yield f"{scheme}://127.0.0.1:{server.server_port}", requests
     finally:
         server.shutdown()
         server.server_close()

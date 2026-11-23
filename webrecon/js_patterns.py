@@ -168,7 +168,7 @@ def parse_script(text, document_url, max_items=1000, *, diagnostics=None, diagno
             return "invalid_url"
         key = (url, kind, attribute, method)
         if key in seen_references:
-            if kind == "javascript":
+            if kind in ("javascript", "script_import"):
                 remember_site(seen_references[key], location, function)
             return "duplicate"
         if len(references) + len(patterns) >= max_items:

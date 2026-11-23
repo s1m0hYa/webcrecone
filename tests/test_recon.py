@@ -216,11 +216,13 @@ class RealLoopbackIntegrationTests(unittest.TestCase):
         self.assertEqual(len(data["pages"]), 3)
 
     def test_real_completion_interval(self):
-        with local_server({"/robots.txt": ROBOTS, "/": (200, {"Content-Type": "text/html"}, "<title>Local</title>")}) as (origin, requests):
+        last_byte_times = []
+        with local_server({"/robots.txt": ROBOTS, "/": (200, {"Content-Type": "text/html"}, "<title>Local</title>")},
+                          last_byte_times=last_byte_times) as (origin, requests):
             config = Config(origin, [origin], allowed_loopback_hosts=["127.0.0.1"], max_depth=0)
             data = Crawler(config, authorized=True).run()
         self.assertEqual(len(data["pages"]), 1)
-        self.assertGreaterEqual(requests[1][1] - requests[0][1], 1.0)
+        self.assertGreaterEqual(requests[1][1] - last_byte_times[0], 1.0)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,37 @@
+name: Offline and loopback verification
+on: [push, workflow_dispatch]
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use preinstalled Python 3.10
+        shell: pwsh
+        run: |
+          $versions = Get-ChildItem (Join-Path $env:RUNNER_TOOL_CACHE Python) -Directory -Filter '3.10.*'
+          $version = $versions | Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
+          if (!$version) { throw 'Python 3.10 is missing from this runner image' }
+          $exe = if ($IsWindows) { 'x64/python.exe' } else { 'x64/bin/python3.10' }
+          "WR_PYTHON=$(Join-Path $version.FullName $exe)" >> $env:GITHUB_ENV
+      - name: CLI, report and integration tests
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & $env:WR_PYTHON --version
+          & $env:WR_PYTHON -S -m webrecon --help
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & $env:WR_PYTHON -S -m webrecon plan --config tests/fixtures/config.loopback.json
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          # A missing socket, certificate tool or browser must stay visible in the result.
+          & $env:WR_PYTHON -B -c "import unittest; s=unittest.defaultTestLoader.discover('tests'); r=unittest.TextTestRunner(verbosity=2).run(s); raise SystemExit(not r.wasSuccessful() or bool(r.skipped))"
+          exit $LASTEXITCODE

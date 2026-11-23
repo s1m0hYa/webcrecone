@@ -12,6 +12,13 @@ def _html_documents(data):
     return data.get("pages", []) + data.get("response_documents", [])
 
 
+def _finding_units(data):
+    """추가 문서 문맥도 후보 집계에 포함한다. HTTP 관찰과 파서 진단 횟수는 파일 단위다."""
+    for resource in _html_documents(data) + data.get("scripts", []):
+        yield resource
+        yield from resource.get("document_contexts", [])
+
+
 def classify_endpoint(endpoint, *, javascript_call=False):
     """저장된 이름/폼/호출 단서로 후보를 분류한다. 이 분류는 크롤링 허용 규칙이 아니다."""
     path = urlsplit(endpoint["url"]).path.lower()
@@ -61,7 +68,7 @@ def analyze_report(data):
         data["robots_checks"] = legacy_robots_checks(data)
     annotate_collection(data)
     # 표시용 endpoint.sources는 20개로 잘린다. 분류 근거는 저장된 파서 참조도 함께 확인한다.
-    call_urls = {_path_url(ref["url"]) for resource in _html_documents(data) + data.get("scripts", [])
+    call_urls = {_path_url(ref["url"]) for resource in _finding_units(data)
                  for ref in resource.get("references", [])
                  if ref.get("kind") == "javascript" and ref.get("attribute") != "string_literal"}
     for endpoint in data.get("endpoints", []):
@@ -84,11 +91,11 @@ def analyze_report(data):
     data["api_list"] = [item for item in data["url_list"] if "api" in item["categories"]]
     patterns = []
     seen_patterns = set()
-    for resource in _html_documents(data) + data.get("scripts", []):
+    for resource in _finding_units(data):
         for item in resource.get("endpoint_patterns", []):
             location = item.get("source_location", {})
             # 같은 패턴이어도 파일/인라인 script/호출 위치가 다르면 별도 근거로 유지한다.
-            key = (item["pattern"], item["origin"], item["source"], tuple(item["declared_methods"]),
+            key = (item["pattern"], item["origin"], item["source"], item.get("document"), tuple(item["declared_methods"]),
                    location.get("line"), location.get("column"), item.get("inline_script", {}).get("index"))
             if key not in seen_patterns:
                 seen_patterns.add(key)
@@ -199,7 +206,7 @@ def build_url_list(data):
         for form in page.get("forms", []):
             if form.get("method") in HTTP_METHODS:
                 declared.setdefault(_path_url(form["action"]), set()).add(form["method"])
-    for resource in _html_documents(data) + data.get("scripts", []):
+    for resource in _finding_units(data):
         for reference in resource.get("references", []):
             if reference.get("kind") == "javascript" and reference.get("method") in HTTP_METHODS:
                 declared.setdefault(_path_url(reference["url"]), set()).add(reference["method"])

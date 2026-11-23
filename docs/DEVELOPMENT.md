@@ -312,3 +312,15 @@ STATUS.md에 바뀐 파일·완료 항목·실행한 명령과 실제 결과·�
 주석만 바꾸는 작업은 실행 로직을 함께 고치지 않는다. 필요한 경우 주석/docstring을 제외한 AST 비교로
 변경 범위를 확인하고 기존 회귀 테스트를 실행한다. docstring 자체는 help()/__doc__에서 보이는 설명이므로
 텍스트 변화와 실행 로직 변화는 구별한다.
+
+## 공유 JS와 파일 간 호출 수정·검증
+
+문서 문맥과 메모리 예산은 `script_contexts.py`, 이름 지정 import 바인딩은 `js_resolver.py`,
+선언·호출 근거는 `js_symbols.py`, 파일 간 연결과 구버전 자료 처리는 `report_explorer.py`를 수정한다.
+`tests/test_script_contexts.py`의 두 페이지와 순환 모듈 fixture는 추가 전송 없이 문서별 화면까지 확인한다.
+
+`python -m unittest discover -s tests -v`에서 실제 소켓, TLS, 브라우저 검사 결과도 볼 수 있다.
+TLS 검사는 설치된 OpenSSL로 임시 인증서를 만든 뒤 기본 거부·로컬 신뢰·IP 불일치를 검사한다.
+브라우저 검사는 기존 Chrome·Chromium·Edge로 임시 HTML을 열어 1280/580px 화면의 배치,
+40개 항목 분할, 검색, 모듈 호출과 역방향 이동을 검사한다. 필수 도구가 없으면 해당 검사에 skip 사유가 표시된다.
+인쇄물 가독성처럼 육안이 필요한 항목은 실행한 환경과 함께 별도로 기록한다.

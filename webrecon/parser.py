@@ -127,7 +127,7 @@ class _PageParser(HTMLParser):
             if self.js_diagnostic_details < self.max_items:
                 self.js_diagnostics.append(diagnostic)
                 graph = diagnostic["symbol_graph"]
-                self.symbol_items += len(graph["symbols"]) + len(graph["relations"])
+                self.symbol_items += sum(len(graph.get(k, [])) for k in ("symbols", "relations", "exports", "imported_calls"))
                 self.js_diagnostic_details += 1 + len(diagnostic["calls"])
             else:
                 self.limited = True

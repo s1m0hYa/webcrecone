@@ -21,7 +21,7 @@ class CopyExecutionTests(unittest.TestCase):
 
             def invoke(*args):
                 # -S로 site-packages 및 site 초기화를 제외한다. 모든 명령은 오프라인이다.
-                return subprocess.run([sys.executable, "-S", "-m", "webrecon", *args], cwd=root,
+                return subprocess.run([sys.executable, "-X", "utf8", "-S", "-m", "webrecon", *args], cwd=root,
                                       capture_output=True, encoding="utf-8", timeout=20)
 
             help_result = invoke("--help")

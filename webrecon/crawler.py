@@ -12,6 +12,7 @@ from .javascript import parse_script, public_references
 from .models import ScanResult, utc_now
 from .parser import parse_html
 from .safety import parameter_names, redact_url
+from .script_contexts import ScriptContexts
 from .scope import ScopeError, normalize_url, origin_of, path_block_reason
 
 
@@ -40,6 +41,7 @@ class Crawler:
         self.scheduled = set()
         self.endpoints = {}
         self.page_attempts = 0
+        self.script_contexts = ScriptContexts()
 
     def _issue(self, code, url=None):
         issue = {"code": code, "observed_at": utc_now()}
@@ -47,7 +49,7 @@ class Crawler:
             issue["url"] = redact_url(url)
         self.result.issues.append(issue)
 
-    def _discover(self, reference, source, depth, *, script_depth=None, document_url=None, base_url=None, record_only=False):
+    def _discover(self, reference, source, depth, *, script_depth=None, document_url=None, base_url=None, record_only=False, context="response_document"):
         """후보를 먼저 기록한 뒤 방문 여부를 결정한다. 큐 등록 자체는 요청 승인이 아니다.
 
         reference.url은 정책 검사용 원래 주소이며 저장 필드는 별도로 마스킹한다.
@@ -71,7 +73,7 @@ class Crawler:
         discovery.update({key: reference[key] for key in ("source_location", "inline_script") if key in reference})
         self.result.discoveries.append(discovery)
         if record_only:
-            discovery["context"] = "response_document"
+            discovery["context"] = context
         try:
             normalized = normalize_url(raw_url)
         except ScopeError as exc:
@@ -92,7 +94,9 @@ class Crawler:
         evidence = {"page": redact_url(source), "kind": kind, "attribute": reference.get("attribute")}
         evidence.update({key: reference[key] for key in ("source_location", "inline_script") if key in reference})
         if record_only:
-            evidence["context"] = "response_document"
+            evidence["context"] = context
+            if context == "shared_script":
+                evidence["document"] = redact_url(document_url)
         if kind == "robots":
             evidence.update({"directive": reference["directive"], "line_number": reference["line_number"]})
         if evidence not in endpoint["sources"] and len(endpoint["sources"]) < 20:
@@ -107,7 +111,7 @@ class Crawler:
         if reason:
             discovery["disposition"] = reason
         elif record_only:
-            discovery["disposition"] = "response_reference_only"
+            discovery["disposition"] = "shared_script_only" if context == "shared_script" else "response_reference_only"
         elif (kind in ("script", "script_import", "link", "target", "seed", "navigation")
               and (parts.path.lower().endswith((".js", ".mjs"))
                    or (kind in ("script", "script_import") and "." not in parts.path.rsplit("/", 1)[-1]))):
@@ -146,6 +150,8 @@ class Crawler:
             discovery["disposition"] = "queued"
 
     def _discover_html(self, parsed, source, depth, *, script_depth=None, record_only=False):
+        if not record_only:
+            self.script_contexts.document(parsed.references, source, parsed.base_url or source)
         for reference in parsed.references:
             # HTML의 직접 script 참조는 문서 깊이를 늘리지 않는다. JS 체인은 별도 상한으로 제한한다.
             is_script = reference["kind"] in ("script", "script_import")
@@ -215,7 +221,8 @@ class Crawler:
             self.result.scripts.append(script)
             self._discover({"url": response.url, "kind": "script_response", "method": "GET"}, requested_url, depth)
             diagnostic = {}
-            refs, patterns, limited = parse_script(response.text(), base_url, self.config.max_items_per_page,
+            text = response.text()
+            refs, patterns, limited = parse_script(text, base_url, self.config.max_items_per_page,
                                                     script_url=response.url, diagnostics=diagnostic)
             script["js_diagnostics"] = [{**diagnostic, "source": redact_url(response.url), "document": redact_url(document_url),
                                          "base_url": redact_url(base_url)}]
@@ -223,6 +230,8 @@ class Crawler:
             script["endpoint_patterns"] = [{**item, "source": redact_url(response.url), "document": redact_url(document_url),
                                             "base_url": redact_url(base_url)} for item in patterns]
             script["parsed"] = True
+            if not record_only and document_url == script["document"] and base_url == script["base_url"]:
+                self.script_contexts.observed(requested_url, response.url, script, text, len(response.body))
             if collection == "page":
                 record["analysis_type"] = "javascript"
             if limited:
@@ -271,7 +280,7 @@ class Crawler:
     def run(self):
         """페이지 BFS와 JS 큐를 함께 소진한다. JS 분석에서 생긴 페이지도 같은 실행 중 처리한다.
 
-        본문은 파싱 중에만 사용한다. 파일 저장은 CLI가 report 모듈에 맡긴다.
+        공유 JS 재해석용 본문 캐시는 실행 종료 전에 해제한다. 파일 저장은 CLI가 report 모듈에 맡긴다.
         """
         for index, url in enumerate(self.config.start_urls):
             self._discover({"url": url, "kind": "target" if index == 0 else "seed"}, url, 0)
@@ -325,6 +334,8 @@ class Crawler:
                 self._discover({"url": item["url"], "kind": "robots", "attribute": item["directive"],
                                 "directive": item["directive"], "line_number": item["line_number"]},
                                item["source"], 0)
+        # 모든 전송이 끝난 다음 실행해 추가 문맥이 탐색 경로를 바꾸지 않게 한다.
+        self.script_contexts.analyze(self.config.max_items_per_page, self._discover, self._issue)
         self.result.requests = self.client.records
         self.result.endpoints = list(self.endpoints.values())
         self.result.finished_at = utc_now()

@@ -98,4 +98,52 @@ def symbol_graph(script, owners, limit):
             break
         caller = identifiers[(info["declaration"]["line"], info["declaration"]["column"])] if info else None
         relations.append({"source": caller, "target": target, "kind": kind, "location": script.location(position)})
+    # 외부 이름은 아직 함수로 단정하지 않는다. 보고서가 관찰된 import/선언 양 끝을 대조한다.
+    exports, imported_calls = [], []
+    if script.limited or not any(t.value in ("import", "export") for t in script.tokens):
+        return graph
+    tokens = script.tokens
+    for i, token in enumerate(tokens[:-1]):
+        if len(symbols) + len(relations) + len(exports) + len(imported_calls) >= limit:
+            graph["limited"] = True
+            break
+        if token.kind != "identifier":
+            continue
+        scope = script.token_scopes[i]
+        if token.value == "export" and scope is script.scopes[0]:
+            pos = i + 1
+            if tokens[pos].value == "async":
+                pos += 1
+            if pos + 1 < len(tokens) and tokens[pos].value in ("function", "const"):
+                name = tokens[pos + 1]
+                info = functions.get(name.start)
+                if info and safe_name(name.value) == name.value and name.start not in script.written_positions:
+                    point = info["declaration"]
+                    symbol_id = identifiers.get((point["line"], point["column"]))
+                    if symbol_id is not None:
+                        exports.append({"name": name.value, "symbol": symbol_id})
+            continue
+        if not script.named_imports or tokens[i + 1].value != "(":
+            continue
+        if i and tokens[i - 1].value in (".", "?.", "new", "#"):
+            continue
+        end = script.pairs.get(i + 1)
+        if end is None or (end + 1 < len(tokens) and tokens[end + 1].value == "{"):
+            continue
+        binding = script._lookup(scope, token.value)
+        if not binding or binding.reason != "unsupported_binding" or binding.position in script.written_positions:
+            continue
+        imported = script.named_imports.get(binding.position)
+        if not imported or safe_name(imported[0]) != imported[0]:
+            continue
+        owner = enclosing_function(scope)
+        info = owners.get(id(owner))
+        at = info["declaration"] if info else {}
+        caller = identifiers.get((at.get("line"), at.get("column")))
+        if owner is not script.scopes[0] and caller is None:
+            continue
+        imported_calls.append({"name": imported[0], "source": caller, "import_at": script.location(imported[1]),
+                               "location": script.location(token.start)})
+    if exports or imported_calls:
+        graph.update(exports=exports, imported_calls=imported_calls)
     return graph

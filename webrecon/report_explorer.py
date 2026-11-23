@@ -54,7 +54,10 @@ def _sites(findings):
 def build_explorer(data):
     """참조를 기록한 파일을 부모로 삼는다. URL 인벤토리의 경로 단위 집계로 관계를 추측하지 않는다."""
     nodes, keys, edges = [], {}, set()
-    aliases, observations = {}, {}
+    aliases, observations = {}, []
+    # 같은 파일을 가리켜도 페이지별 상대 주소가 달라지므로 문서 문맥을 그래프 키에 포함한다.
+    contexts, contextual_files = {}, set()
+    exports, pending_calls, import_targets = {}, [], {}
     limits = data.get("limits") or {}
     api_paths = {row.get("url") for row in data.get("api_list", [])}
     try:
@@ -101,7 +104,20 @@ def build_explorer(data):
                 item["document"] = _address(record["document"])
             if kind != "response" and record.get("status") == 200:
                 allow_open(item, record)
-            observations[field, index] = item
+            observations.append((field, record, item))
+            if kind == "js" and "document_contexts" in record:
+                contextual_files.add(item["id"])
+                contexts[item["id"], item.get("document"), record.get("base_url")] = item
+                for view in record["document_contexts"]:
+                    doc, base = view["document"], view["base_url"]
+                    unit = node(("context", index, doc, base), "js", addr, addr)
+                    unit.update({key: item[key] for key in ("captured", "open", "status") if key in item})
+                    unit.update(document=doc, base=base)
+                    contexts[item["id"], doc, base] = unit
+                    observations.append((field, {**record, **view}, unit))
+                item["base"] = record.get("base_url")
+                if record.get("contexts_limited"):
+                    item["contextsLimited"] = True
             if kind != "response" or record.get("purpose") in ("page", "script"):
                 for alias in (addr, _address(record.get("requested_url"))):
                     if _masked(alias):
@@ -158,6 +174,18 @@ def build_explorer(data):
             at = _point(record.get("declaration"))
             if kind in ("function", "variable") and at:
                 by_id[index] = symbol(unit, kind, record["name"], at)
+        # 내보내기와 호출 근거는 선언 ID로만 연결한다. 파일 이름이 비슷한 후보는 선택하지 않는다.
+        if parent["kind"] == "js" and parent.get("status") == 200 and parent.get("captured"):
+            for exp in graph.get("exports", []):
+                target = by_id.get(exp.get("symbol"))
+                if target and target["kind"] == "function":
+                    exports[unit["id"], exp["name"]] = target
+            for call in graph.get("imported_calls", []):
+                caller = unit if call["source"] is None else by_id.get(call["source"])
+                point = _point(call.get("import_at"))
+                at = _point(call.get("location"))
+                if caller and point and at:
+                    pending_calls.append((unit["id"], tuple(point), call["name"], caller, at))
         for relation in graph.get("relations", []):
             if not isinstance(relation, dict):
                 continue
@@ -175,8 +203,7 @@ def build_explorer(data):
             if source and (source is unit or source["kind"] == "function") and target and target["kind"] == target_kind and via and at:
                 connect(source, target, via, point=at)
 
-    for (field, index), parent in observations.items():
-        record = data[field][index]
+    for field, record, parent in observations:
         for diagnostic in record.get("js_diagnostics", []):
             add_symbol_graph(parent, diagnostic)
         resolved_sites = {}
@@ -201,9 +228,15 @@ def build_explorer(data):
                 else:
                     target_kind = "link"
             target = aliases.get(addr) if target_kind in ("js", "link", "asset") else None
+            observed_script = target if target and target["id"] in contextual_files and kind in ("script", "script_import") else None
+            if observed_script:
+                doc = record.get("document") if field == "scripts" else record.get("url")
+                target = contexts.get((target["id"], doc, record.get("base_url") or doc))
             if target is None:
-                key = (target_kind, addr, source["id"] if _masked(addr) else None)
+                key = (target_kind, addr, source["id"] if _masked(addr) or observed_script else None)
                 target = node(key, target_kind, addr, addr)
+                if observed_script:
+                    target["contextMissing"] = True
                 if asset and target_kind in ("asset", "js"):
                     target["format"] = asset
                     # 수집·재생을 유도하지 않고, 실제 원본과 같은 정적 리소스에만 수동 열기를 제공한다.
@@ -215,7 +248,11 @@ def build_explorer(data):
                 site = (ref.get("url"), basis, tuple(_point(ref.get("source_location")) or ()),
                         (ref.get("inline_script") or {}).get("index"))
                 resolved_sites[site] = target
-            connect(source, target, basis, method, _point(ref.get("source_location")))
+            at = _point(ref.get("source_location"))
+            if (kind == "script_import" and basis == "import" and ref.get("exact_address") and at
+                    and target["kind"] == "js" and target.get("captured") and target.get("status") == 200):
+                import_targets[source["id"], tuple(at)] = target["id"]
+            connect(source, target, basis, method, at)
 
         for item in _sites(record.get("endpoint_patterns", [])):
             site = (item.get("resolved_url"), item.get("attribute"), tuple(_point(item.get("source_location")) or ()),
@@ -240,4 +277,9 @@ def build_explorer(data):
                     continue
                 variable = symbol(unit, "variable", binding["name"], at, () if at else tuple(scope_at))
                 connect(target, variable, "주소식 의존", point=_point(item.get("source_location")))
+    # 모든 파일의 선언이 모인 뒤 해석해야 모듈 순서나 순환 import에 의존하지 않는다.
+    for unit_id, import_at, name, caller, at in pending_calls:
+        target = exports.get((import_targets.get((unit_id, import_at)), name))
+        if target:
+            connect(caller, target, "모듈 직접 호출", point=at)
     return nodes

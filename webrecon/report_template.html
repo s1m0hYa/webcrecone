@@ -17,7 +17,7 @@
 <nav data-report-tabs data-default-tab="${default_tab}" class="section-nav" aria-label="보고서 목차"><a id="tab-document" data-report-tab href="#document-section">페이지·호출 관계</a><a id="tab-endpoint" data-report-tab href="#endpoint-section">엔드포인트</a><a id="tab-resource" data-report-tab href="#resource-section">파일 위치</a><a id="tab-pattern" data-report-tab href="#pattern-section">주소 패턴</a><a id="tab-variable" data-report-tab href="#variable-section">주소식 변수</a><a id="tab-js-diagnostic" data-report-tab href="#js-diagnostic-section">JS 진단</a><a id="tab-request" data-report-tab href="#request-section">요청 기록</a><a id="tab-diagnostic" data-report-tab href="#diagnostic-section">수집 진단</a></nav>
 <noscript><p class="notice">검색·필터는 브라우저 JavaScript가 필요합니다. 아래 전체 목록은 그대로 확인할 수 있습니다.</p></noscript>
 <section data-report-panel id="document-section"><h2>페이지·호출 관계</h2>
-<p class="description">탐색 목록에서 함수나 변수를 선택하면 선언 위치와 같은 스크립트 안의 호출·사용 관계를 볼 수 있습니다.</p>
+<p class="description">탐색 목록에서 함수나 변수를 선택하면 선언 위치와 함수 호출·변수 사용 관계를 볼 수 있습니다. 모듈 직접 호출은 관찰된 두 파일의 import와 export를 대조한 결과입니다.</p>
 <div id="explorer-data" hidden>${explorer}</div>
 <div id="explorer" hidden>
   <div class="ex-layout">

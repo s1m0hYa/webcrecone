@@ -35,15 +35,18 @@
     const unit = nodes[item.unit];
     if (!unit) return "";
     if (unit.kind === "inline") return nodes[unit.file].address + " · " + unit.label;
-    return unit.address === "local:input.js" ? "로컬 JS 입력" : unit.address;
+    if (unit.address === "local:input.js") return "로컬 JS 입력";
+    return unit.document ? unit.address + " · 문서 " + unit.document : unit.address;
   }
+  // 파일 간 직접 호출도 양방향으로 표시하고 간선에는 원래 근거 종류를 남긴다.
+  const isCall = edge => ["직접 호출","모듈 직접 호출"].includes(edge.via);
   function where(at) { return at ? at[0] + "행 " + at[1] + "열" : ""; }
   function basis(edge) { return [edge.via, edge.method && "선언 " + edge.method, where(edge.at)].filter(Boolean).join(" · "); }
   function matches(item) {
     const kinds = group[get("kind").value];
     const term = get("filter").value.trim().toLocaleLowerCase();
     const apiHint = get("kind").value === "api" && item.api_hint;
-    return (!kinds || kinds.includes(item.kind) || apiHint) && (item.label + " " + item.address + " " + sourceLabel(item)).toLocaleLowerCase().includes(term);
+    return (!kinds || kinds.includes(item.kind) || apiHint) && (item.label + " " + item.address + " " + (item.document || "") + " " + sourceLabel(item)).toLocaleLowerCase().includes(term);
   }
   function drawList() {
     const found = nodes.filter(matches);
@@ -52,6 +55,7 @@
       const b = button(short(item), () => chooseRoot(item));
       if (sourceLabel(item)) b.append(element("small",sourceLabel(item) + (item.at ? " · " + where(item.at) : "")));
       if (item.address && item.address !== short(item)) b.append(element("small", item.address));
+      if (item.document) b.append(element("small", "문서 · " + item.document));
       b.setAttribute("aria-pressed", String(item === anchor));
       get("list").append(b);
     });
@@ -162,9 +166,12 @@
     if (item.status) detail.append(element("p","관찰된 GET 응답 · HTTP " + item.status,"ex-meta"));
     if (edge) detail.append(element("p","선택한 참조 · " + basis(edge),"ex-meta"));
     if (item.document) detail.append(element("p","JS를 해석한 문서 · " + item.document,"ex-meta"));
+    if (item.base && item.base !== item.document) detail.append(element("p","상대 주소 기준 · " + item.base,"ex-meta"));
+    if (item.contextsLimited) detail.append(element("p","기록 상한으로 일부 페이지 문맥이 생략되었습니다.","ex-meta"));
     if (item.origin) detail.append(element("p","해석 기준 origin · " + item.origin,"ex-meta"));
     if (item.resolution) detail.append(element("p",{resolved:"정적 해석 완료", partial:"일부 변수 미확인", unresolved:"주소 값 미확인"}[item.resolution],"ex-meta"));
-    if (!item.captured && ["js","asset","link"].includes(item.kind)) detail.append(element("p","참조 발견 · 응답 미기록","ex-meta"));
+    if (item.contextMissing) detail.append(element("p","파일 응답은 관찰했으나 이 문서 기준의 해석 근거가 없습니다.","ex-meta"));
+    else if (!item.captured && ["js","asset","link"].includes(item.kind)) detail.append(element("p","참조 발견 · 응답 미기록","ex-meta"));
     if (item.format) detail.append(element("p",item.format,"ex-meta"));
     const unit = nodes[item.unit];
     const original = unit ? (nodes[unit.file] || unit) : item;
@@ -187,16 +194,16 @@
     }
     const symbol = ["function","variable"].includes(item.kind);
     if (symbol) {
-      listSection(detail, "이 함수를 호출한 곳", back.filter(x => x.edge.via === "직접 호출"), x => reference(x.source,x.edge));
-      listSection(detail, "호출하는 함수", item.edges.filter(e => e.via === "직접 호출"), e => reference(nodes[e.to],e));
+      listSection(detail, "이 함수를 호출한 곳", back.filter(x => isCall(x.edge)), x => reference(x.source,x.edge));
+      listSection(detail, "호출하는 함수", item.edges.filter(isCall), e => reference(nodes[e.to],e));
       listSection(detail, "변수 사용처", back.filter(x => ["변수 사용","주소식 의존"].includes(x.edge.via)), x => reference(x.source,x.edge));
       listSection(detail, "사용하는 변수", item.edges.filter(e => e.via === "변수 사용"), e => reference(nodes[e.to],e));
       if (item.uses?.length) {
-        const known = new Set(back.filter(x => x.edge.via === "직접 호출").map(x => where(x.edge.at)));
+        const known = new Set(back.filter(x => isCall(x.edge)).map(x => where(x.edge.at)));
         listSection(detail, "호출자 미확인 · 기록된 호출 위치", item.uses.filter(at => !known.has(where(at))), at => element("p",where(at),"ex-meta"));
       }
     }
-    listSection(detail, "이 항목을 참조한 곳", symbol ? back.filter(x => !["직접 호출","변수 사용","주소식 의존"].includes(x.edge.via)) : back,
+    listSection(detail, "이 항목을 참조한 곳", symbol ? back.filter(x => !["직접 호출","모듈 직접 호출","변수 사용","주소식 의존"].includes(x.edge.via)) : back,
       x => reference(x.source,x.edge));
   }
 

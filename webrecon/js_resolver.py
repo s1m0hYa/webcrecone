@@ -258,6 +258,8 @@ class Script:
         self.excluded_strings = set()
         # 먼저 전체 선언을 등록해야 뒤에 선언된 지역 변수도 바깥쪽 상수를 가린다는 사실을 안다.
         self._build_scopes()
+        self.named_imports = {}
+        self.written_positions = set()
         self._bindings()
 
     def location(self, position):
@@ -358,6 +360,33 @@ class Script:
             scope = scope.parent
         return None
 
+    def _named_import(self, index):
+        """import {name as local} from "literal"의 선언만 반환한다. 패키지 주소 해석은 별도다."""
+        tokens = self.tokens
+        opening = index + 1
+        closing = self.pairs.get(opening)
+        if (closing is None or tokens[opening].value != "{" or closing + 2 >= len(tokens)
+                or tokens[closing + 1].value != "from" or tokens[closing + 2].kind != "string"):
+            return None
+        names = []
+        cursor = opening + 1
+        while cursor < closing:
+            exported = local = tokens[cursor]
+            if exported.kind != "identifier":
+                return None
+            cursor += 1
+            if cursor < closing and tokens[cursor].value == "as":
+                cursor += 1
+                if cursor >= closing or tokens[cursor].kind != "identifier":
+                    return None
+                local = tokens[cursor]
+                cursor += 1
+            names.append((exported.value, local))
+            if cursor < closing and tokens[cursor].value != ",":
+                return None
+            cursor += 1
+        return names
+
     def _bindings(self):
         """매개변수/선언을 먼저 등록하고, 감지한 쓰기 구문이 있으면 상수 추적을 무효화한다."""
         declaration_positions = set()
@@ -376,6 +405,14 @@ class Script:
                     scope = scope.parent
             if cursor >= len(self.tokens):
                 continue
+            if token.value == "import" and scope is self.scopes[0]:
+                names = self._named_import(index)
+                if names is not None:
+                    # 지역 별칭만 선언한다. from 다음 문장의 이름을 import로 가리는 일을 막는다.
+                    for exported, local in names:
+                        self._bind(scope, local, [], "unsupported_binding")
+                        self.named_imports[local.start] = (exported, token.start)
+                    continue
             if token.value in {"function", "class", "import"}:
                 end = self._end_expression(cursor) if token.value == "import" else cursor + 1
                 for name in self.tokens[cursor:end]:
@@ -415,6 +452,8 @@ class Script:
             previous = self.tokens[index - 1].value if index else ""
             if next_value in {"=", "+=", "-=", "*=", "%=", "||=", "&&=", "??=", "**=", "++", "--"} or previous in {"++", "--"}:
                 binding = self._lookup(self.token_scopes[index], token.value)
+                if binding:
+                    self.written_positions.add(binding.position)
                 if binding and not binding.reason:
                     binding.reason = "write_detected"
 
